@@ -1,4 +1,4 @@
-# 🔥 Elemental Hands: Arena
+# 🔥 Power: Arena
 
 An AI-powered hand-tracking browser game where your hands become magical weapons. Use real-time gestures to control Fire, Ice, Lightning, and Arcane powers while defending the arena from incoming elemental sigils.
 
