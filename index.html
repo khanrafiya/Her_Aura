@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ELEMENTAL HANDS: ARENA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: #000;
+            overflow: hidden;
+            font-family: 'Rajdhani', sans-serif;
+            color: #eafcff;
+        }
+
+        canvas#output_canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform: scaleX(-1);
+        }
+
+        video { display: none; }
+
+        /* ---------- HUD LAYER ---------- */
+        #ui {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .glow-text {
+            text-shadow: 0 0 8px currentColor, 0 0 18px currentColor;
+        }
+
+        /* ----- Top HUD bar ----- */
+        #hud {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 18px 26px;
+            opacity: 0;
+            transition: opacity 0.6s;
+        }
+        #hud.show { opacity: 1; }
+
+        .hud-block {
+            background: linear-gradient(135deg, rgba(10,12,20,0.75), rgba(10,12,20,0.35));
+            border: 1px solid rgba(120,200,255,0.25);
+            border-radius: 10px;
+            padding: 10px 16px;
+            backdrop-filter: blur(3px);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            letter-spacing: 3px;
+            color: #6fd8ff;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .stat-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 26px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .bar-wrap {
+            width: 220px;
+            height: 14px;
+            border-radius: 7px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.2);
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .bar-fill {
+            height: 100%;
+            width: 100%;
+            border-radius: 7px;
+            transition: width 0.15s linear;
+        }
+        #healthFill { background: linear-gradient(90deg,#ff2d2d,#ff8a00); box-shadow: 0 0 12px #ff2d2d; }
+        #energyFill { background: linear-gradient(90deg,#00e0ff,#7a5cff); box-shadow: 0 0 12px #00e0ff; }
+
+        #comboTag {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            color: #ffd23f;
+            text-align: center;
+            margin-top: 4px;
+            min-height: 22px;
+        }
+
+        /* ----- Power selector (bottom) ----- */
+        #powerBar {
+            position: absolute;
+            bottom: 22px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 14px;
+            opacity: 0;
+            transition: opacity 0.6s;
+            pointer-events: auto;
+        }
+        #powerBar.show { opacity: 1; }
+
+        .power-btn {
+            width: 86px;
+            height: 86px;
+            border-radius: 16px;
+            border: 2px solid rgba(255,255,255,0.18);
+            background: rgba(10,12,20,0.7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.15s, border-color 0.2s, box-shadow 0.2s;
+            color: #cfeeff;
+            font-family: 'Orbitron', sans-serif;
+        }
+        .power-btn .icon { font-size: 26px; }
+        .power-btn .key { font-size: 10px; letter-spacing: 2px; opacity: 0.6; margin-top: 2px; }
+        .power-btn.active {
+            transform: translateY(-6px) scale(1.06);
+            border-color: #fff;
+        }
+        .power-btn[data-power="fire_ice"].active { box-shadow: 0 0 22px #ff7a00, 0 0 22px #34c2ff inset; }
+        .power-btn[data-power="lightning"].active { box-shadow: 0 0 22px #b388ff; }
+        .power-btn[data-power="red_blue"].active { box-shadow: 0 0 22px #ff2d55, 0 0 22px #2d6bff inset; }
+
+        /* ----- Screens ----- */
+        .screen {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: radial-gradient(ellipse at center, rgba(15,5,25,0.86), rgba(0,0,0,0.96));
+            pointer-events: auto;
+            transition: opacity 0.5s;
+        }
+        .hidden { display: none !important; }
+
+        .title {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: clamp(38px, 7vw, 78px);
+            letter-spacing: 4px;
+            background: linear-gradient(90deg,#ff7a00,#ffd23f,#34c2ff,#b388ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 22px rgba(150,180,255,0.4));
+            margin: 0;
+        }
+        .subtitle {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 13px;
+            letter-spacing: 6px;
+            color: #6fd8ff;
+            margin-top: 4px;
+        }
+
+        .rune-ring {
+            width: 140px; height: 140px;
+            border-radius: 50%;
+            border: 2px solid rgba(120,200,255,0.4);
+            margin: 26px 0;
+            position: relative;
+            animation: spin 12s linear infinite;
+        }
+        .rune-ring::before, .rune-ring::after {
+            content: '';
+            position: absolute;
+            inset: 14px;
+            border-radius: 50%;
+            border: 1px dashed rgba(255,180,80,0.5);
+        }
+        .rune-ring::after { inset: 30px; border-color: rgba(180,120,255,0.5); animation: spin 8s linear infinite reverse; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .instructions {
+            max-width: 560px;
+            font-size: 16px;
+            line-height: 1.7;
+            color: #cfeeff;
+            opacity: 0.9;
+            margin: 6px 0 22px;
+        }
+        .instructions b { color: #ffd23f; }
+
+        .btn-primary {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 18px;
+            letter-spacing: 3px;
+            padding: 16px 46px;
+            border-radius: 50px;
+            border: none;
+            color: #0a0a0f;
+            background: linear-gradient(90deg,#ffd23f,#ff7a00);
+            cursor: pointer;
+            box-shadow: 0 0 30px rgba(255,160,0,0.5);
+            transition: transform 0.15s;
+        }
+        .btn-primary:hover { transform: scale(1.05); }
+        .btn-primary:active { transform: scale(0.97); }
+
+        .small-note {
+            margin-top: 16px;
+            font-size: 12px;
+            letter-spacing: 1px;
+            color: #6fd8ff;
+            opacity: 0.7;
+        }
+
+        #waveAnnounce {
+            position: absolute;
+            top: 38%;
+            left: 50%;
+            transform: translate(-50%,-50%) scale(0.7);
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 52px;
+            letter-spacing: 6px;
+            color: #fff;
+            text-shadow: 0 0 30px #ffd23f;
+            opacity: 0;
+            z-index: 20;
+            transition: all 0.5s cubic-bezier(.2,1.5,.4,1);
+            pointer-events: none;
+        }
+        #waveAnnounce.show { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+
+        #flashOverlay {
+            position: absolute;
+            inset: 0;
+            background: #ff0033;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        @media (max-width: 640px) {
+            .hud-block { padding: 7px 10px; }
+            .stat-value { font-size: 18px; }
+            .bar-wrap { width: 130px; }
+            .power-btn { width: 64px; height: 64px; }
+            .power-btn .icon { font-size: 20px; }
+        }
+    </style>
+</head>
+
+<body>
+    <video id="input_video"></video>
+    <canvas id="output_canvas"></canvas>
+    <div id="flashOverlay"></div>
+    <div id="waveAnnounce"></div>
+
+    <div id="ui">
+        <!-- TOP HUD -->
+        <div id="hud">
+            <div class="hud-block">
+                <div class="stat-label">SCORE</div>
+                <div class="stat-value" id="scoreVal">0</div>
+                <div id="comboTag"></div>
+            </div>
+            <div class="hud-block" style="text-align:right;">
+                <div class="stat-label">WAVE</div>
+                <div class="stat-value" id="waveVal">1</div>
+            </div>
+        </div>
+
+        <!-- Health / Energy bars (top center-ish, stacked left) -->
+        <div class="hud-block" id="barsBlock" style="position:absolute; top:18px; left:50%; transform:translateX(-50%); opacity:0; transition:opacity .6s;">
+            <div class="stat-label">VITALITY</div>
+            <div class="bar-wrap"><div class="bar-fill" id="healthFill"></div></div>
+            <div class="stat-label" style="margin-top:8px;">ENERGY</div>
+            <div class="bar-wrap"><div class="bar-fill" id="energyFill"></div></div>
+        </div>
+
+        <!-- POWER SELECT -->
+        <div id="powerBar">
+            <div class="power-btn active" data-power="fire_ice">
+                <div class="icon">🔥❄️</div>
+                <div class="key">1 · FIRE/ICE</div>
+            </div>
+            <div class="power-btn" data-power="lightning">
+                <div class="icon">⚡</div>
+                <div class="key">2 · STORM</div>
+            </div>
+            <div class="power-btn" data-power="red_blue">
+                <div class="icon">🔴🔵</div>
+                <div class="key">3 · ARCANE</div>
+            </div>
+        </div>
+
+        <!-- START SCREEN -->
+        <div class="screen" id="menuScreen">
+            <h1 class="title glow-text">ELEMENTAL HANDS</h1>
+            <div class="subtitle">A R E N A</div>
+            <div class="rune-ring"></div>
+            <p class="instructions">
+                Sigils spawn at the edges and drift toward your core. <b>Open your hand</b> to channel an
+                element, <b>pinch</b> to focus a beam. Switch elements with <b>1 / 2 / 3</b> or tap below —
+                left hand = Fire / Red, right hand = Ice / Blue, raise either open hand for Lightning.
+                Match the sigil's color before it reaches the center, or your vitality burns away.
+                Chain hits without missing to build your <b>combo</b>.
+            </p>
+            <button class="btn-primary" id="startBtn">▶ ENTER THE ARENA</button>
+            <div class="small-note">Requires camera access · works best in good lighting</div>
+        </div>
+
+        <!-- GAME OVER SCREEN -->
+        <div class="screen hidden" id="overScreen">
+            <h1 class="title glow-text" style="font-size: clamp(32px,6vw,56px);">ARENA BREACHED</h1>
+            <p class="instructions" id="overStats"></p>
+            <button class="btn-primary" id="retryBtn">⟲ RECHANNEL</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        let startTime = null;
+
+        let particles = [];
+        let lightningBolts = [];
+
+        // State
+        let currentPower = 'fire_ice';
+        let lightningIntensity = 0;
+
+        let handIntensities = [0, 0];
+        let handSurges = [0, 0];
+        let lastHandOpenState = [false, false];
+
+        const HAND_CONNECTIONS = [[0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8], [5, 9], [9, 10], [10, 11], [11, 12], [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17]];
+
+        /* =========================================================
+           AUDIO  — tiny synthesized SFX, no external files needed
+        ========================================================= */
+        let actx = null;
+        function audioCtx() {
+            if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+            return actx;
+        }
+        function blip(freq, dur, type = 'sine', gain = 0.18, glideTo = null) {
+            try {
+                const ctx = audioCtx();
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                if (glideTo) osc.frequency.exponentialRampToValueAtTime(glideTo, ctx.currentTime + dur);
+                g.gain.setValueAtTime(gain, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+                osc.connect(g).connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + dur);
+            } catch (e) { /* audio not ready yet */ }
+        }
+        const sfx = {
+            hit: () => blip(420, 0.12, 'square', 0.12, 220),
+            kill: (type) => {
+                const base = { fire: 180, ice: 520, lightning: 700, red: 200, blue: 480 }[type] || 300;
+                blip(base, 0.28, 'sawtooth', 0.16, base * 1.8);
+            },
+            miss: () => blip(110, 0.35, 'sawtooth', 0.2, 60),
+            wave: () => { blip(300, 0.25, 'triangle', 0.18, 600); setTimeout(() => blip(450, 0.3, 'triangle', 0.18, 900), 120); },
+            boss: () => { blip(80, 0.6, 'sawtooth', 0.22, 50); setTimeout(() => blip(60, 0.7, 'sawtooth', 0.2, 40), 200); },
+            gameover: () => { blip(300, 0.5, 'sawtooth', 0.2, 60); }
+        };
+
+        /* =========================================================
+           GAME STATE
+        ========================================================= */
+        const game = {
+            state: 'menu', // menu | playing | over
+            score: 0,
+            combo: 0,
+            comboTimer: 0,
+            wave: 1,
+            killsThisWave: 0,
+            killsNeeded: 5,
+            health: 100,
+            maxHealth: 100,
+            energy: 100,
+            maxEnergy: 100,
+            targets: [],
+            spawnTimer: 0,
+            spawnInterval: 110,
+            isBossWave: false,
+            shake: 0
+        };
+
+        const ELEMENT_COLORS = {
+            fire: '#ff7a00', ice: '#34c2ff', lightning: '#b388ff', red: '#ff2d55', blue: '#2d6bff'
+        };
+        const ELEMENT_GLYPH = {
+            fire: '🔥', ice: '❄️', lightning: '⚡', red: '🔴', blue: '🔵'
+        };
+
+        function poolForPower() {
+            if (currentPower === 'fire_ice') return ['fire', 'ice'];
+            if (currentPower === 'red_blue') return ['red', 'blue'];
+            return ['lightning'];
+        }
+
+        function spawnTarget(forceType = null, isBoss = false) {
+            const w = canvasElement.width, h = canvasElement.height;
+            const edge = Math.floor(Math.random() * 4);
+            let x, y;
+            if (edge === 0) { x = Math.random() * w; y = -40; }
+            else if (edge === 1) { x = w + 40; y = Math.random() * h; }
+            else if (edge === 2) { x = Math.random() * w; y = h + 40; }
+            else { x = -40; y = Math.random() * h; }
+
+            const allTypes = ['fire', 'ice', 'lightning', 'red', 'blue'];
+            const type = forceType || allTypes[Math.floor(Math.random() * allTypes.length)];
+            const cx = w / 2, cy = h / 2;
+            const dist = Math.hypot(cx - x, cy - y);
+            const speed = isBoss ? 0.35 : (0.55 + game.wave * 0.04);
+
+            game.targets.push({
+                x, y, type, isBoss,
+                vx: (cx - x) / dist * speed,
+                vy: (cy - y) / dist * speed,
+                radius: isBoss ? 70 : 34,
+                hp: isBoss ? 140 + game.wave * 20 : 18 + game.wave * 2,
+                maxHp: isBoss ? 140 + game.wave * 20 : 18 + game.wave * 2,
+                spin: Math.random() * Math.PI * 2,
+                pulsePhase: Math.random() * Math.PI * 2
+            });
+        }
+
+        function announce(text, fn) {
+            const el = document.getElementById('waveAnnounce');
+            el.textContent = text;
+            el.classList.add('show');
+            setTimeout(() => { el.classList.remove('show'); if (fn) fn(); }, 1300);
+        }
+
+        function startWave() {
+            game.killsThisWave = 0;
+            game.isBossWave = (game.wave % 5 === 0);
+            game.killsNeeded = game.isBossWave ? 1 : (5 + game.wave);
+            game.spawnInterval = Math.max(35, 110 - game.wave * 5);
+
+            if (game.isBossWave) {
+                sfx.boss();
+                announce('⚠ BOSS SIGIL ⚠');
+                spawnTarget(null, true);
+            } else {
+                sfx.wave();
+                announce('WAVE ' + game.wave);
+            }
+        }
+
+        function damageTarget(t, amount, byType) {
+            t.hp -= amount;
+            sfx.hit();
+            spawnHitParticles(t.x, t.y, byType);
+            if (t.hp <= 0) killTarget(t);
+        }
+
+        function spawnHitParticles(x, y, type, count = 6) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 20,
+                    y: y + (Math.random() - 0.5) * 20,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    life: 1.0,
+                    decay: 0.05,
+                    size: Math.random() * 14 + 6,
+                    type
+                });
+            }
+        }
+
+        function killTarget(t) {
+            game.combo++;
+            game.comboTimer = 90;
+            const mult = 1 + Math.floor(game.combo / 5) * 0.5;
+            const gained = Math.round((t.isBoss ? 250 : 10) * mult);
+            game.score += gained;
+            sfx.kill(t.type);
+            spawnHitParticles(t.x, t.y, t.type, t.isBoss ? 60 : 24);
+            game.shake = t.isBoss ? 22 : 8;
+            game.targets.splice(game.targets.indexOf(t), 1);
+            game.killsThisWave++;
+
+            if (t.isBoss || game.killsThisWave >= game.killsNeeded) {
+                game.wave++;
+                setTimeout(startWave, 600);
+            }
+        }
+
+        function targetReachedCenter(t) {
+            const dmg = t.isBoss ? 35 : 10;
+            game.health -= dmg;
+            game.combo = 0;
+            sfx.miss();
+            game.shake = 14;
+            flashRed();
+            game.targets.splice(game.targets.indexOf(t), 1);
+            if (game.health <= 0) endGame();
+        }
+
+        function flashRed() {
+            const f = document.getElementById('flashOverlay');
+            f.style.transition = 'none';
+            f.style.opacity = '0.35';
+            requestAnimationFrame(() => {
+                f.style.transition = 'opacity 0.4s';
+                f.style.opacity = '0';
+            });
+        }
+
+        function updateGame(dt) {
+            if (game.state !== 'playing') return;
+
+            // energy regen
+            game.energy = Math.min(game.maxEnergy, game.energy + 0.25);
+
+            // combo decay
+            if (game.comboTimer > 0) { game.comboTimer--; }
+            else if (game.combo > 0) { game.combo = 0; }
+
+            // spawn
+            game.spawnTimer++;
+            if (!game.isBossWave && game.spawnTimer > game.spawnInterval && game.targets.length < 8) {
+                game.spawnTimer = 0;
+                spawnTarget();
+            }
+
+            const w = canvasElement.width, h = canvasElement.height;
+            const cx = w / 2, cy = h / 2;
+
+            game.targets.forEach(t => {
+                t.x += t.vx; t.y += t.vy;
+                t.spin += 0.03;
+                t.pulsePhase += 0.08;
+                const d = Math.hypot(t.x - cx, t.y - cy);
+                if (d < (t.isBoss ? 90 : 60)) targetReachedCenter(t);
+            });
+
+            if (game.shake > 0) game.shake *= 0.85;
+
+            // HUD sync
+            document.getElementById('scoreVal').textContent = game.score;
+            document.getElementById('waveVal').textContent = game.wave;
+            document.getElementById('healthFill').style.width = Math.max(0, game.health) + '%';
+            document.getElementById('energyFill').style.width = Math.max(0, game.energy) + '%';
+            const comboTag = document.getElementById('comboTag');
+            comboTag.textContent = game.combo >= 2 ? ('×' + game.combo + ' COMBO') : '';
+        }
+
+        function drawTargets() {
+            game.targets.forEach(t => {
+                const color = ELEMENT_COLORS[t.type];
+                const pulse = 1 + Math.sin(t.pulsePhase) * 0.08;
+                const r = t.radius * pulse;
+
+                canvasCtx.save();
+                canvasCtx.translate(t.x, t.y);
+                canvasCtx.rotate(t.spin);
+
+                // outer glow ring
+                const grad = canvasCtx.createRadialGradient(0, 0, 0, 0, 0, r * 2.2);
+                grad.addColorStop(0, color + 'cc');
+                grad.addColorStop(0.5, color + '33');
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                canvasCtx.globalCompositeOperation = 'lighter';
+                canvasCtx.fillStyle = grad;
+                canvasCtx.beginPath();
+                canvasCtx.arc(0, 0, r * 2.2, 0, Math.PI * 2);
+                canvasCtx.fill();
+
+                // rune sigil (rotating polygon)
+                canvasCtx.globalCompositeOperation = 'source-over';
+                canvasCtx.strokeStyle = color;
+                canvasCtx.lineWidth = 4;
+                canvasCtx.shadowBlur = 18;
+                canvasCtx.shadowColor = color;
+                const sides = t.isBoss ? 8 : 6;
+                canvasCtx.beginPath();
+                for (let i = 0; i <= sides; i++) {
+                    const a = (i / sides) * Math.PI * 2;
+                    const px = Math.cos(a) * r, py = Math.sin(a) * r;
+                    if (i === 0) canvasCtx.moveTo(px, py); else canvasCtx.lineTo(px, py);
+                }
+                canvasCtx.closePath();
+                canvasCtx.stroke();
+
+                canvasCtx.beginPath();
+                canvasCtx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+                canvasCtx.stroke();
+
+                canvasCtx.restore();
+
+                // glyph (counter-rotated so it stays upright, also un-mirror since canvas is scaleX(-1))
+                canvasCtx.save();
+                canvasCtx.translate(t.x, t.y);
+                canvasCtx.scale(-1, 1);
+                canvasCtx.font = (t.isBoss ? 46 : 26) + 'px sans-serif';
+                canvasCtx.textAlign = 'center';
+                canvasCtx.textBaseline = 'middle';
+                canvasCtx.fillText(ELEMENT_GLYPH[t.type], 0, 0);
+                canvasCtx.restore();
+
+                // hp bar
+                const barW = r * 1.6;
+                canvasCtx.save();
+                canvasCtx.translate(t.x - barW / 2, t.y - r - 16);
+                canvasCtx.fillStyle = 'rgba(255,255,255,0.15)';
+                canvasCtx.fillRect(0, 0, barW, 6);
+                canvasCtx.fillStyle = color;
+                canvasCtx.fillRect(0, 0, barW * Math.max(0, t.hp / t.maxHp), 6);
+                canvasCtx.restore();
+            });
+        }
+
+        function endGame() {
+            game.state = 'over';
+            sfx.gameover();
+            document.getElementById('hud').classList.remove('show');
+            document.getElementById('powerBar').classList.remove('show');
+            document.getElementById('barsBlock').style.opacity = '0';
+            document.getElementById('overStats').innerHTML =
+                `Final score <b>${game.score}</b> · reached <b>wave ${game.wave}</b><br>The arena's sigils overwhelmed your core. Channel again?`;
+            document.getElementById('overScreen').classList.remove('hidden');
+        }
+
+        function resetGame() {
+            game.score = 0; game.combo = 0; game.comboTimer = 0;
+            game.wave = 1; game.health = 100; game.energy = 100;
+            game.targets = []; game.spawnTimer = 0;
+            document.getElementById('overScreen').classList.add('hidden');
+            document.getElementById('hud').classList.add('show');
+            document.getElementById('powerBar').classList.add('show');
+            document.getElementById('barsBlock').style.opacity = '1';
+            game.state = 'playing';
+            startWave();
+        }
+
+        /* =========================================================
+           Power particle helper functions (visual FX, unchanged spirit)
+        ========================================================= */
+        function spawnFire(x, y, isDrawing = false) {
+            if (!isDrawing && Math.random() > handIntensities[0]) return;
+            let count = isDrawing ? 2 : 1;
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x + (Math.random() - 0.5) * (isDrawing ? 10 : 15),
+                    y: y + (Math.random() - 0.5) * (isDrawing ? 10 : 15),
+                    vx: isDrawing ? 0 : (Math.random() - 0.5) * 4,
+                    vy: isDrawing ? 0 : ((Math.random() * -10) - 4) - (handSurges[0] * 20),
+                    life: 1.0,
+                    decay: isDrawing ? 0.0055 : 0.06,
+                    size: isDrawing ? (Math.random() * 20 + 20) : (Math.random() * 22 + 8),
+                    type: 'fire'
+                });
+            }
+        }
+
+        function spawnIce(x, y, isDrawing = false) {
+            if (!isDrawing && Math.random() > handIntensities[1]) return;
+            let count = isDrawing ? 2 : 1;
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x + (Math.random() - 0.5) * (isDrawing ? 10 : 15),
+                    y: y + (Math.random() - 0.5) * (isDrawing ? 10 : 15),
+                    vx: isDrawing ? 0 : (Math.random() - 0.5) * 4,
+                    vy: isDrawing ? 0 : ((Math.random() * -5) - 2) - (handSurges[1] * 15),
+                    life: 1.0,
+                    decay: isDrawing ? 0.0055 : 0.06,
+                    size: isDrawing ? (Math.random() * 20 + 20) : (Math.random() * 20 + 5),
+                    type: 'ice'
+                });
+            }
+        }
+
+        function spawnRed(x, y, isDrawing = false) {
+            if (!isDrawing && Math.random() > handIntensities[0]) return;
+            let count = isDrawing ? 2 : 1;
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x + (Math.random() - 0.5) * (isDrawing ? 10 : 15),
+                    y: y + (Math.random() - 0.5) * (isDrawing ? 10 : 15),
+                    vx: isDrawing ? 0 : (Math.random() - 0.5) * 4,
+                    vy: isDrawing ? 0 : ((Math.random() * -10) - 4) - (handSurges[0] * 20),
+                    life: 1.0,
+                    decay: isDrawing ? 0.0055 : 0.06,
+                    size: isDrawing ? (Math.random() * 20 + 20) : (Math.random() * 22 + 8),
+                    type: 'red'
+                });
+            }
+        }
+
+        function spawnBlue(x, y, isDrawing = false) {
+            if (!isDrawing && Math.random() > handIntensities[1]) return;
+            let count = isDrawing ? 2 : 1;
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x + (Math.random() - 0.5) * (isDrawing ? 10 : 15),
+                    y: y + (Math.random() - 0.5) * (isDrawing ? 10 : 15),
+                    vx: isDrawing ? 0 : (Math.random() - 0.5) * 4,
+                    vy: isDrawing ? 0 : ((Math.random() * -5) - 2) - (handSurges[1] * 15),
+                    life: 1.0,
+                    decay: isDrawing ? 0.0055 : 0.06,
+                    size: isDrawing ? (Math.random() * 20 + 20) : (Math.random() * 20 + 5),
+                    type: 'blue'
+                });
+            }
+        }
+
+        function spawnLightning(x, y) {
+            if (Math.random() > lightningIntensity) return;
+            const bolt = [];
+            let cx = x;
+            let cy = y;
+            for (let i = 0; i < 25; i++) {
+                bolt.push({ x: cx, y: cy });
+                cx += (Math.random() - 0.5) * 80;
+                cy += (Math.random() - 0.8) * 80;
+            }
+            lightningBolts.push({
+                path: bolt,
+                life: 1.0,
+                color: Math.random() > 0.5 ? '#e0ffff' : '#00bfff'
+            });
+        }
+
+        function setPower(p) {
+            currentPower = p;
+            document.querySelectorAll('.power-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.power === p);
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '1') setPower('fire_ice');
+            if (e.key === '2') setPower('lightning');
+            if (e.key === '3') setPower('red_blue');
+        });
+        document.querySelectorAll('.power-btn').forEach(btn => {
+            btn.addEventListener('click', () => setPower(btn.dataset.power));
+        });
+
+        /* =========================================================
+           Hand-pose detection (same logic as before)
+        ========================================================= */
+        const pointingState = {
+            left: { frames: 0, active: false, lastWrist: null },
+            right: { frames: 0, active: false, lastWrist: null }
+        };
+
+        function isPinchingInternal(landmarks, state) {
+            const thumb = landmarks[4];
+            const index = landmarks[8];
+            const wrist = landmarks[0];
+
+            let velocity = 0;
+            if (state.lastWrist) {
+                velocity = Math.hypot(wrist.x - state.lastWrist.x, wrist.y - state.lastWrist.y);
+            }
+            state.lastWrist = { x: wrist.x, y: wrist.y };
+
+            if (velocity > 0.05) return false;
+
+            const fingers = [12, 16, 20];
+            const pips = [10, 14, 18];
+
+            let openCount = 0;
+            for (let i = 0; i < 3; i++) {
+                const tip = landmarks[fingers[i]];
+                const pip = landmarks[pips[i]];
+                const dTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+                const dPip = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
+                if (dTip > dPip) openCount++;
+            }
+
+            if (openCount < 2) return false;
+
+            const pinchDist = Math.hypot(thumb.x - index.x, thumb.y - index.y);
+            const midPip = landmarks[9];
+            const handSize = Math.hypot(midPip.x - wrist.x, midPip.y - wrist.y);
+
+            return pinchDist < handSize * 0.35;
+        }
+
+        function isPinching(landmarks, isRightHand) {
+            const state = isRightHand ? pointingState.right : pointingState.left;
+            const raw = isPinchingInternal(landmarks, state);
+
+            if (raw) {
+                state.frames = 5;
+                state.active = true;
+            } else {
+                state.frames--;
+                if (state.frames <= 0) state.active = false;
+            }
+            return state.active;
+        }
+
+        function isHandOpen(landmarks) {
+            let open = 0;
+            const wrist = landmarks[0];
+            const tips = [8, 12, 16, 20];
+            const pips = [6, 10, 14, 18];
+            for (let i = 0; i < tips.length; i++) {
+                const tip = landmarks[tips[i]];
+                const pip = landmarks[pips[i]];
+                const dTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+                const dPip = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
+                if (dTip > dPip) open++;
+            }
+            return open >= 3;
+        }
+
+        /* =========================================================
+           MAIN RENDER LOOP
+        ========================================================= */
+        function onResults(results) {
+            canvasElement.width = window.innerWidth;
+            canvasElement.height = window.innerHeight;
+
+            if (!startTime) startTime = Date.now();
+
+            canvasCtx.save();
+
+            // screen shake
+            let shakeX = 0, shakeY = 0;
+            if (game.shake > 0.3) {
+                shakeX = (Math.random() - 0.5) * game.shake;
+                shakeY = (Math.random() - 0.5) * game.shake;
+            }
+            canvasCtx.translate(shakeX, shakeY);
+
+            canvasCtx.clearRect(-50, -50, canvasElement.width + 100, canvasElement.height + 100);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            canvasCtx.globalCompositeOperation = 'multiply';
+            canvasCtx.fillStyle = `rgba(10, 5, 0, 0.5)`;
+            canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.globalCompositeOperation = 'source-over';
+
+            // arena core marker (only while playing)
+            if (game.state === 'playing') {
+                const cx = canvasElement.width / 2, cy = canvasElement.height / 2;
+                const t = Date.now() * 0.003;
+                canvasCtx.save();
+                canvasCtx.globalCompositeOperation = 'lighter';
+                canvasCtx.strokeStyle = `rgba(120,200,255,${0.25 + Math.sin(t) * 0.08})`;
+                canvasCtx.lineWidth = 2;
+                canvasCtx.beginPath();
+                canvasCtx.arc(cx, cy, 60 + Math.sin(t) * 4, 0, Math.PI * 2);
+                canvasCtx.stroke();
+                canvasCtx.beginPath();
+                canvasCtx.arc(cx, cy, 90, 0, Math.PI * 2);
+                canvasCtx.strokeStyle = 'rgba(120,200,255,0.12)';
+                canvasCtx.stroke();
+                canvasCtx.restore();
+            }
+
+            let handPositions = [];
+
+            if (results.multiHandLandmarks) {
+                let anyHandOpen = false;
+                results.multiHandLandmarks.forEach((landmarks) => {
+                    if (isHandOpen(landmarks)) anyHandOpen = true;
+                });
+
+                if (currentPower === 'lightning') {
+                    lightningIntensity += anyHandOpen ? 0.08 : -0.05;
+                } else {
+                    lightningIntensity -= 0.1;
+                }
+                lightningIntensity = Math.max(0, Math.min(1, lightningIntensity));
+
+                if (lightningIntensity > 0.01) {
+                    if (Math.random() < 0.5 * lightningIntensity) {
+                        canvasCtx.fillStyle = `rgba(200, 220, 255, ${0.25 * lightningIntensity})`;
+                        canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+                    }
+
+                    results.multiHandLandmarks.forEach((landmarks) => {
+                        if (!isHandOpen(landmarks)) return;
+
+                        const tips = [4, 8, 12, 16, 20];
+                        tips.forEach(tipIdx => {
+                            const pt = landmarks[tipIdx];
+                            if (Math.random() < 0.07) spawnLightning(pt.x * canvasElement.width, pt.y * canvasElement.height);
+                        });
+
+                        HAND_CONNECTIONS.forEach(([s, e]) => {
+                            if (Math.random() < 0.005) {
+                                const start = landmarks[s];
+                                spawnLightning(start.x * canvasElement.width, start.y * canvasElement.height);
+                            }
+                        });
+                    });
+                }
+
+                results.multiHandLandmarks.forEach((landmarks, index) => {
+                    const label = results.multiHandedness[index].label;
+                    const isRightHand = label === 'Right';
+                    const targetIndex = isRightHand ? 1 : 0;
+
+                    const isOpen = isHandOpen(landmarks);
+                    const isPinch = isPinching(landmarks, isRightHand);
+
+                    if (currentPower === 'fire_ice' || currentPower === 'red_blue') {
+                        handIntensities[targetIndex] += (isOpen || isPinch) ? 0.05 : -0.15;
+
+                        if (isOpen && !lastHandOpenState[targetIndex]) {
+                            handSurges[targetIndex] = 1.0;
+                        }
+                    } else {
+                        handIntensities[targetIndex] -= 0.15;
+                    }
+                    lastHandOpenState[targetIndex] = isOpen;
+
+                    handSurges[targetIndex] *= 0.92;
+                    if (handSurges[targetIndex] < 0.01) handSurges[targetIndex] = 0;
+
+                    handIntensities[targetIndex] = Math.max(0, Math.min(1, handIntensities[targetIndex]));
+
+                    const intensity = handIntensities[targetIndex];
+
+                    const palm = landmarks[9];
+                    const lx = palm.x * canvasElement.width;
+                    const ly = palm.y * canvasElement.height;
+
+                    handPositions.push({ x: lx, y: ly, isRightHand, intensity, isOpen, isPinch });
+
+                    if (intensity <= 0.01) return;
+
+                    if (isPinch) {
+                        const indexTip = landmarks[8];
+                        const thumbTip = landmarks[4];
+
+                        const tx = ((indexTip.x + thumbTip.x) / 2) * canvasElement.width;
+                        const ty = ((indexTip.y + thumbTip.y) / 2) * canvasElement.height;
+
+                        if (currentPower === 'fire_ice') {
+                            const elapsed = Date.now() - startTime;
+                            if (elapsed > 4000) {
+                                if (!isRightHand) spawnFire(tx, ty, true);
+                                else spawnIce(tx, ty, true);
+                            }
+                        }
+                    }
+
+                    if (currentPower === 'red_blue') {
+                        if (!isRightHand) {
+                            let flicker = Math.sin(Date.now() * 0.02) * 25;
+                            let redGlow = canvasCtx.createRadialGradient(lx, ly, 0, lx, ly, 550 + flicker);
+                            redGlow.addColorStop(0, `rgba(255, 0, 0, ${0.45 * intensity})`);
+                            redGlow.addColorStop(0.5, `rgba(200, 0, 0, ${0.15 * intensity})`);
+                            redGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                            canvasCtx.globalCompositeOperation = 'screen';
+                            canvasCtx.fillStyle = redGlow;
+                            canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+                            landmarks.forEach(pt => spawnRed(pt.x * canvasElement.width, pt.y * canvasElement.height));
+                            HAND_CONNECTIONS.forEach(([s, e]) => {
+                                const start = landmarks[s];
+                                const end = landmarks[e];
+                                spawnRed(((start.x + end.x) / 2) * canvasElement.width, ((start.y + end.y) / 2) * canvasElement.height);
+                            });
+                        } else {
+                            let flicker = Math.sin(Date.now() * 0.01) * 20;
+                            let blueGlow = canvasCtx.createRadialGradient(lx, ly, 0, lx, ly, 400 + flicker);
+                            blueGlow.addColorStop(0, `rgba(0, 0, 255, ${0.4 * intensity})`);
+                            blueGlow.addColorStop(0.5, `rgba(0, 50, 255, ${0.1 * intensity})`);
+                            blueGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                            canvasCtx.globalCompositeOperation = 'screen';
+                            canvasCtx.fillStyle = blueGlow;
+                            canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+                            landmarks.forEach(pt => spawnBlue(pt.x * canvasElement.width, pt.y * canvasElement.height));
+                            HAND_CONNECTIONS.forEach(([s, e]) => {
+                                const start = landmarks[s];
+                                const end = landmarks[e];
+                                spawnBlue(((start.x + end.x) / 2) * canvasElement.width, ((start.y + end.y) / 2) * canvasElement.height);
+                            });
+                        }
+                    } else if (currentPower === 'fire_ice') {
+                        if (!isRightHand) {
+                            let flicker = Math.sin(Date.now() * 0.02) * 25;
+                            let heatGlow = canvasCtx.createRadialGradient(lx, ly, 0, lx, ly, 550 + flicker);
+                            heatGlow.addColorStop(0, `rgba(255, 60, 0, ${0.45 * intensity})`);
+                            heatGlow.addColorStop(0.5, `rgba(255, 30, 0, ${0.15 * intensity})`);
+                            heatGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                            canvasCtx.globalCompositeOperation = 'screen';
+                            canvasCtx.fillStyle = heatGlow;
+                            canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+                            landmarks.forEach(pt => spawnFire(pt.x * canvasElement.width, pt.y * canvasElement.height));
+                            HAND_CONNECTIONS.forEach(([s, e]) => {
+                                const start = landmarks[s];
+                                const end = landmarks[e];
+                                spawnFire(((start.x + end.x) / 2) * canvasElement.width, ((start.y + end.y) / 2) * canvasElement.height);
+                            });
+                        } else {
+                            let flicker = Math.sin(Date.now() * 0.01) * 20;
+                            let coldGlow = canvasCtx.createRadialGradient(lx, ly, 0, lx, ly, 400 + flicker);
+                            coldGlow.addColorStop(0, `rgba(100, 200, 255, ${0.4 * intensity})`);
+                            coldGlow.addColorStop(0.5, `rgba(0, 100, 255, ${0.1 * intensity})`);
+                            coldGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                            canvasCtx.globalCompositeOperation = 'screen';
+                            canvasCtx.fillStyle = coldGlow;
+                            canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+                            landmarks.forEach(pt => spawnIce(pt.x * canvasElement.width, pt.y * canvasElement.height));
+                            HAND_CONNECTIONS.forEach(([s, e]) => {
+                                const start = landmarks[s];
+                                const end = landmarks[e];
+                                spawnIce(((start.x + end.x) / 2) * canvasElement.width, ((start.y + end.y) / 2) * canvasElement.height);
+                            });
+                        }
+                    }
+                });
+            }
+
+            /* ---------- GAME LOGIC + COLLISIONS ---------- */
+            if (game.state === 'playing') {
+                updateGame();
+
+                // Determine "active power" per type based on current mode + hands/lightning
+                game.targets.forEach(t => {
+                    let dealt = 0;
+                    let activeColor = null;
+
+                    if ((t.type === 'fire' || t.type === 'ice') && currentPower === 'fire_ice') {
+                        const wantRight = t.type === 'ice';
+                        handPositions.forEach(hp => {
+                            if (hp.isRightHand !== wantRight) return;
+                            if (hp.intensity < 0.25) return;
+                            const d = Math.hypot(hp.x - t.x, hp.y - t.y);
+                            if (d < t.radius + 70) {
+                                dealt += hp.intensity * (game.energy > 1 ? 0.9 : 0.2);
+                                activeColor = t.type;
+                            }
+                        });
+                    } else if ((t.type === 'red' || t.type === 'blue') && currentPower === 'red_blue') {
+                        const wantRight = t.type === 'blue';
+                        handPositions.forEach(hp => {
+                            if (hp.isRightHand !== wantRight) return;
+                            if (hp.intensity < 0.25) return;
+                            const d = Math.hypot(hp.x - t.x, hp.y - t.y);
+                            if (d < t.radius + 70) {
+                                dealt += hp.intensity * (game.energy > 1 ? 0.9 : 0.2);
+                                activeColor = t.type;
+                            }
+                        });
+                    } else if (t.type === 'lightning' && currentPower === 'lightning' && lightningIntensity > 0.3) {
+                        handPositions.forEach(hp => {
+                            if (!hp.isOpen) return;
+                            const d = Math.hypot(hp.x - t.x, hp.y - t.y);
+                            if (d < t.radius + 140) {
+                                dealt += lightningIntensity * (game.energy > 1 ? 1.1 : 0.25);
+                                activeColor = 'lightning';
+                            }
+                        });
+                    }
+
+                    if (dealt > 0) {
+                        game.energy = Math.max(0, game.energy - dealt * 0.6);
+                        damageTarget(t, dealt, activeColor);
+                    }
+                });
+
+                drawTargets();
+            }
+
+            canvasCtx.globalCompositeOperation = 'lighter';
+
+            particles.forEach((p, index) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= (p.decay || 0.06);
+
+                if (p.life <= 0) {
+                    particles.splice(index, 1);
+                } else {
+                    let gradient = canvasCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+
+                    if (p.type === 'ice') {
+                        gradient.addColorStop(0, `rgba(255, 255, 255, ${p.life})`);
+                        gradient.addColorStop(0.3, `rgba(180, 240, 255, ${p.life * 0.8})`);
+                        gradient.addColorStop(0.6, `rgba(0, 150, 255, ${p.life * 0.4})`);
+                    } else if (p.type === 'red') {
+                        gradient.addColorStop(0, `rgba(255, 200, 200, ${p.life})`);
+                        gradient.addColorStop(0.3, `rgba(255, 0, 0, ${p.life * 0.8})`);
+                        gradient.addColorStop(0.6, `rgba(100, 0, 0, ${p.life * 0.4})`);
+                    } else if (p.type === 'blue') {
+                        gradient.addColorStop(0, `rgba(200, 200, 255, ${p.life})`);
+                        gradient.addColorStop(0.3, `rgba(0, 0, 255, ${p.life * 0.8})`);
+                        gradient.addColorStop(0.6, `rgba(0, 0, 100, ${p.life * 0.4})`);
+                    } else if (p.type === 'lightning') {
+                        gradient.addColorStop(0, `rgba(230, 220, 255, ${p.life})`);
+                        gradient.addColorStop(0.4, `rgba(160, 120, 255, ${p.life * 0.8})`);
+                        gradient.addColorStop(0.7, `rgba(80, 40, 180, ${p.life * 0.4})`);
+                    } else {
+                        gradient.addColorStop(0, `rgba(255, 255, 220, ${p.life})`);
+                        gradient.addColorStop(0.2, `rgba(255, 180, 0, ${p.life * 0.8})`);
+                        gradient.addColorStop(0.5, `rgba(255, 40, 0, ${p.life * 0.4})`);
+                    }
+                    gradient.addColorStop(1, `rgba(0, 0, 0, 0)`);
+
+                    canvasCtx.fillStyle = gradient;
+                    canvasCtx.beginPath();
+                    canvasCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    canvasCtx.fill();
+                }
+            });
+
+            lightningBolts.forEach((b, index) => {
+                b.life -= 0.1;
+                if (b.life <= 0) {
+                    lightningBolts.splice(index, 1);
+                } else {
+                    if (b.path.length === 0) return;
+
+                    canvasCtx.beginPath();
+                    canvasCtx.moveTo(b.path[0].x, b.path[0].y);
+                    for (let i = 1; i < b.path.length; i++) {
+                        canvasCtx.lineTo(b.path[i].x, b.path[i].y);
+                    }
+
+                    canvasCtx.save();
+                    canvasCtx.globalCompositeOperation = 'lighter';
+                    canvasCtx.strokeStyle = b.color;
+                    canvasCtx.lineWidth = 20;
+                    canvasCtx.globalAlpha = b.life * 0.3;
+                    canvasCtx.shadowBlur = 30;
+                    canvasCtx.shadowColor = b.color;
+                    canvasCtx.stroke();
+                    canvasCtx.restore();
+
+                    canvasCtx.save();
+                    canvasCtx.globalCompositeOperation = 'lighter';
+                    canvasCtx.strokeStyle = b.color;
+                    canvasCtx.lineWidth = 8;
+                    canvasCtx.globalAlpha = b.life * 0.6;
+                    canvasCtx.stroke();
+                    canvasCtx.restore();
+
+                    canvasCtx.save();
+                    canvasCtx.globalCompositeOperation = 'source-over';
+                    canvasCtx.strokeStyle = '#ffffff';
+                    canvasCtx.lineWidth = 2;
+                    canvasCtx.globalAlpha = b.life;
+                    canvasCtx.stroke();
+                    canvasCtx.restore();
+                }
+            });
+
+            canvasCtx.restore();
+        }
+
+        /* =========================================================
+           CAMERA / MEDIAPIPE SETUP — started after pressing Start
+        ========================================================= */
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.65,
+            minTrackingConfidence: 0.65
+        });
+
+        hands.onResults(onResults);
+
+        let camera = null;
+        function launchCamera() {
+            camera = new Camera(videoElement, {
+                onFrame: async () => { await hands.send({ image: videoElement }); },
+                width: 1280,
+                height: 720
+            });
+            camera.start();
+        }
+
+        document.getElementById('startBtn').addEventListener('click', () => {
+            document.getElementById('menuScreen').classList.add('hidden');
+            document.getElementById('hud').classList.add('show');
+            document.getElementById('powerBar').classList.add('show');
+            document.getElementById('barsBlock').style.opacity = '1';
+            game.state = 'playing';
+            startTime = Date.now();
+            launchCamera();
+            startWave();
+        });
+
+        document.getElementById('retryBtn').addEventListener('click', resetGame);
+    </script>
+</body>
+
+</html>
