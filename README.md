@@ -1,4 +1,4 @@
-# 🔥 Power: Arena
+# 🔥 Power: Arena 🚀:https://khanrafiya.github.io/Her_Aura/
 
 An AI-powered hand-tracking browser game where your hands become magical weapons. Use real-time gestures to control Fire, Ice, Lightning, and Arcane powers while defending the arena from incoming elemental sigils.
 
@@ -58,31 +58,5 @@ An AI-powered hand-tracking browser game where your hands become magical weapons
 * Survive increasingly difficult waves.
 * Defeat boss sigils every fifth wave.
 
-## 📂 Project Structure
 
-```text
-Elemental-Hands-Arena/
-│── index.html
-│── README.md
-```
-
-## 📸 Preview
-
-Add screenshots or a gameplay GIF here.
-
-## 🌟 Future Improvements
-
-* Multiplayer mode
-* Additional elemental powers
-* Mobile support
-* Leaderboard system
-* More gesture controls
-* Performance optimizations
-
-## 📄 License
-
-This project is open-source and available for learning and personal use.
-
----
-
-⭐ If you enjoyed this project, consider giving it a **Star** on GitHub!
+🚀Demo:https://khanrafiya.github.io/Her_Aura/
